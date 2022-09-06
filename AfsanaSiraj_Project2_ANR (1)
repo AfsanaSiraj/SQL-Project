@@ -1,0 +1,492 @@
+/* Found distinct customer segments to see how customers are categorized */
+
+SELECT DISTINCT segment
+FROM customers
+
+/* Searched for unique product categories to see what products Superstore offers */
+
+SELECT DISTINCT category
+FROM products
+
+/* Searched for unique sub categories in the larger product field to see how the products are broken down. This query was  mainly to get a sense of the data I am working with */
+
+SELECT DISTINCT sub_category
+FROM products
+
+/* Created a query to see which subcategory of products had the highest and lowest sales. This gives me a starting point for analysis, which items were popular? */
+
+SELECT sub_category, SUM(profit) as total_profit
+FROM products p
+JOIN orders o
+	ON p.product_id = o.product_id
+GROUP BY sub_category
+ORDER BY 2
+
+/* Furniture has a high profit, based on the last query so broke it down to subcategory. Wanted to see which furniture items did well for Superstore */
+
+SELECT sub_category, SUM(profit) as total_proffit
+FROM products p
+JOIN orders o
+	ON p.product_id = o.product_id
+WHERE category ILIKE 'furniture'
+GROUP BY sub_category
+ORDER BY 2
+
+/* Copiers had the most profit, tables had the least and a negative profit, this creates an issue so I wanted to look deeper into the category of tables */
+
+SELECT sub_category, SUM(profit) as total_proffit
+FROM products p
+JOIN orders o
+	ON p.product_id = o.product_id
+GROUP BY sub_category
+ORDER BY 2
+
+/* Now I wanted to look into the regions to analyze what regions had the highest and lowest profit */
+
+SELECT region, SUM(profit)
+FROM orders o
+JOIN regions r
+	ON o.region_id = r.region_id
+GROUP BY region
+ORDER BY 2
+
+/* breaking it down to see which sub region had the highest profit, regions was a little too broad */
+
+SELECT sub_region, SUM(profit)
+FROM orders o
+JOIN regions r
+	ON o.region_id = r.region_id
+GROUP BY sub_region
+ORDER BY 2
+
+/* how many of each product was purchased by subcategory, quantity helps see the popular products to focus on when consumers want */
+
+SELECT sub_category, COUNT (quantity)
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY sub_category
+ORDER BY 2 ASC
+
+/* This query returns the sales, profit, and quantity ordered by each customer segment. This shows me who ordered the most and made the most money for Superstore. Consumers had the highest orders, profit, and sales */
+
+SELECT segment as customer_segment,
+	COUNT (*) order_id,
+	SUM(profit) as total_profit,
+	SUM (sales) as total_sales
+FROM orders o
+JOIN customers c
+	ON o.customer_id = c.customer_id
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY segment
+ORDER BY 3 DESC
+
+/* Based on the last query results consumers had the highest profit so I wanted to break that down to see which region these consumers are in. This query returns profit, sales and quantity ordered by sub-region by the consumer segment */
+
+SELECT region,
+	COUNT (*) customer_id,
+	SUM(profit) as total_profit,
+	SUM (sales) as total_sales
+FROM orders o
+JOIN customers c
+	ON o.customer_id = c.customer_id
+JOIN regions r
+	ON o.region_id = r.region_id
+WHERE segment ILIKE 'consumer'
+GROUP BY region
+ORDER BY 3 DESC
+
+/* Based on the last query, Americas had the highest profit out of all the regions, so broke the America’s region into sub-regions */
+
+SELECT sub_region,
+	COUNT (*) customer_id,
+	SUM(profit) as total_profit,
+	SUM (sales) as total_sales
+FROM orders o
+JOIN customers c
+	ON o.customer_id = c.customer_id
+JOIN regions r
+	ON o.region_id = r.region_id
+WHERE segment ILIKE 'consumer' AND region ILIKE 'Americas'
+GROUP BY sub_region
+ORDER BY 3 DESC
+
+/* Central America had the highest profit and sales, and North America had the lowest. I would suggest offering a discount for more orders in Central America and a referral program for North America. This would mean there is a higher chance of someone new seeing Superstore and placing an order. Offering a loyalty discount will encourage  the customers that shop often at Superstore to return and continue to shop. Focusing on a customers by region will give Superstore the chance to give them what they need and want. */
+
+SELECT sub_category,
+	COUNT (*) customer_id,
+	SUM(profit) as total_profit,
+	SUM (sales) as total_sales
+FROM orders o
+JOIN customers c
+	ON o.customer_id = c.customer_id
+JOIN products p
+	ON o.product_id = p.product_id
+JOIN regions r
+	ON r.region_id = o.region_id
+WHERE segment ILIKE 'consumer' AND sub_region ILIKE 'Central America'
+GROUP BY sub_category
+ORDER BY 3 DESC
+
+/* I also wanted to see the returns, which segment returned the most and why. Consumers had higher returns, Home office has the least returns */
+
+SELECT segment,
+	COUNT (*) order_id
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+GROUP BY segment
+ORDER BY 2
+
+/* Broke down the consumer returns to the reason why it was returned. Was it something Superstore can fix? Many returned because the received the wrong item. Many also didn’t give a reason, so to return an item Superstore should mandate a reason, or provide an incentive like a 2% cashback option */
+
+SELECT reason_returned,
+	COUNT (*) order_id
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE segment ILIKE 'consumer'
+GROUP BY reason_returned
+ORDER BY 2
+
+/* I wanted to look up why home office had returns since they had the least returns. Many stated because they got the wrong item. So this is an issue Superstore can resolve on their end */
+
+SELECT reason_returned,
+	COUNT (*) order_id
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE segment ILIKE 'home office'
+GROUP BY reason_returned
+ORDER BY 2
+
+/* This query helps me see how many orders received the wrong item/ color, this is an error on the company */
+
+SELECT segment, COUNT (*) reason_returned
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE reason_returned ILIKE '%wrong%'
+GROUP BY segment
+
+/* I wanted to see how many return orders did not provide a reason. Many did not, so Superstore should find a way to mandate or persuade more customers to leave a reason */
+
+SELECT segment, COUNT (*) reason_returned
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE reason_returned ILIKE '%not given%'
+GROUP BY segment
+
+
+/* Consumer segments had higher order placed in Q4, and least in Q1. There were also lower discounts in Q4 and higher discounts in Q1, they shouldnt change this. Popular quarters should have lower discounts */
+
+SELECT 
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END,
+	COUNT (r.order_id) as num_orders,
+	SUM (o.profit) as profit,
+	SUM (o.sales) as sales,
+	ROUND(AVG (discount),3) as average_discount
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c 
+	ON o.customer_id = c.customer_id
+WHERE c.segment ILIKE 'consumer'
+GROUP BY 	
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END
+
+/* home office had lowest sales in Q3 and lost money, same with Q1 but had highest profit and sales in Q2. Decrease dicount for items that have a negative profit. Also look into increasing cost of product */
+
+SELECT 
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END,
+	COUNT (r.order_id) as num_orders,
+	SUM (o.profit) as profit,
+	SUM (o.sales) as sales,
+	ROUND(AVG (discount),3) as average_discount
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c 
+	ON o.customer_id = c.customer_id
+WHERE c.segment ILIKE 'home office'
+GROUP BY 	
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END
+
+/* Corporate has the highest profit in Q2, but highest sales in Q4. Look into decreasing discount in Q4 to increase profit. There were also higher quantities ordered during Q4. */
+
+SELECT 
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END,
+	COUNT (r.order_id) as num_orders,
+	SUM (o.profit) as profit,
+	SUM (o.sales) as sales,
+	ROUND(AVG (discount),3) as average_discount
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c 
+	ON o.customer_id = c.customer_id
+WHERE c.segment ILIKE 'corporate'
+GROUP BY 	
+	CASE
+		WHEN DATE_PART('quarter', order_date) = 1
+		THEN 'Q1'
+		WHEN DATE_PART('quarter', order_date) = 2
+		THEN 'Q2' 
+		WHEN DATE_PART('quarter', order_date) = 3
+		THEN 'Q3'
+		ELSE 'Q4'
+	END
+
+/* consumer sales, and profit per sub category, highest profit with phones and copiers. Least for labels and fasteners. Labels and fasteners are usually ordered over and over so offer higher discounts for bulk purchases. Phones and copiers are reordered with upgrades, so offer discounts on upgrades for returning customers */
+ 
+
+SELECT sub_category, 
+	COUNT (quantity) as quantity_ordered, 
+	SUM(profit) as profit, 
+	SUM (sales) as sales
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE segment ILIKE 'consumer'
+GROUP BY sub_category
+ORDER BY 3 ASC
+
+/* consumer segment for Q4 sales, highest sales during Q4 so I wanted to break it down by sub category to see what items were most popular during this time. There should be more of these products as opposed to low selling products. */ 
+
+SELECT sub_category, 
+	COUNT (quantity) as quantity_ordered, 
+	SUM(profit) as profit, 
+	SUM (sales) as sales
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE segment ILIKE 'consumer' AND DATE_PART('quarter', order_date) = 4
+GROUP BY sub_category
+ORDER BY 3 ASC
+
+
+/* There are 4 different categories for returns: first class, same day, second class, and standard class. This table shows how many orders were returned based on ship time. There doesnt seem to be a correlation between ship time and returns. Orders shipped between 0 and 5 days had similar amounts of returns. Therre werent many orders that were shipped 6 or 7 days after the order was placed so that is refelcted in the low returns */
+
+SELECT  AGE(ship_date, order_date) as ship_time,
+		COUNT (r.order_id) as order_returned
+FROM returns r
+JOIN orders o
+	ON r.order_id = o.order_id
+JOIN customers c
+	ON c.customer_id = o.customer_id
+WHERE segment ILIKE 'corporate'
+GROUP BY AGE(ship_date, order_date)
+ORDER BY 1 ASC
+
+/* I chose to look at profit and sales because it shows that high sales doesnt mean high profit. Superstore actually lost money at times despite high sales. */
+
+
+/* These are queries I created to look into in the future, because I didnt have time to dig deeper for analysis */
+
+--What was the average discount of each sub category product? Tables had one of the highest 
+
+SELECT sub_category, ROUND(AVG (discount),2)
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY sub_category
+ORDER BY 2 ASC
+
+/* I separated the tables by product id, so I can see which had the least profit, and what was the discount */
+
+SELECT p.product_id, 
+	sub_category, 
+	product_cost_to_consumer, 
+	MAX(profit) as max_profit, 
+	MAX(discount) as max_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE sub_category ILIKE 'tables'
+GROUP BY p.product_id
+ORDER BY 4
+LIMIT 100
+
+/* now I want to see which tables were purchased in multiples, it looks like the lower profit tables had larger quantity orders */
+
+SELECT sub_category, product_cost_to_consumer, quantity, profit, discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE sub_category ILIKE 'tables' AND quantity = 1
+ORDER BY 2
+LIMIT 100
+
+/* Tables has a negative profile- increase the cost of the table to keep discount or remove discount so there is a positive profit */
+
+SELECT category, SUM(profit) as total_profit, SUM (discount) as total_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY category
+ORDER BY 2 ASC
+
+/* doing by category is too broad, so breaking it down into sub category helped see  what needed to increase/ decrease */
+
+SELECT o.product_id, SUM(profit) as total_profit, SUM (discount) as total_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE p.sub_category ILIKE 'tables'
+GROUP BY o.product_id
+ORDER BY 2 ASC
+
+/*not all tables are negative profit, pay close attention to tables with negative profit values, no discount and increase in price */
+
+SELECT o.product_id, 
+	ROUND(AVG(product_cost_to_consumer),2) as average_cost_to_consumer, 
+	SUM(profit) as total_profit, 
+	SUM (discount) as total_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE p.sub_category ILIKE 'tables'
+GROUP BY o.product_id
+ORDER BY 3 ASC
+
+/* bought more than 1, so lower discount for more bought or increase price to keep discount */
+
+SELECT o.product_id, 
+	ROUND(AVG(product_cost_to_consumer),2) as average_cost_to_consumer, 
+	SUM(profit) as total_profit, 
+	SUM (discount) as total_discount,
+	ROUND(AVG(quantity), 2) as avg_units_sold
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE p.sub_category ILIKE 'tables'
+GROUP BY o.product_id
+ORDER BY 3 ASC
+
+
+/* I separated the tables by product id, so I can see which had the least profit, and what was the discount */
+
+SELECT p.product_id, 
+	sub_category, 
+	product_cost_to_consumer, 
+	MAX(profit) as max_profit, 
+	MAX(discount) as max_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE sub_category ILIKE 'tables'
+GROUP BY p.product_id
+ORDER BY 4
+LIMIT 100
+
+/*copiers made the most, I wanted to see the total profit based on the average discount for each product sub category */
+
+
+SELECT sub_category, ROUND(SUM(profit),2) as total_profit, ROUND(AVG(discount),2) as total_discount
+FROM orders o
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY sub_category
+ORDER BY 2 DESC
+
+/* wanted to see if there was a difference of profit for each reason based on discount, but the average discount for all regions was 0.25 */
+
+SELECT sub_region, 
+	SUM(profit) as total_profit, 	
+	ROUND(AVG (discount),2) as avg_discount
+FROM orders o
+JOIN regions r
+	ON o.region_id = r.region_id
+GROUP BY sub_region
+ORDER BY 2 DESC
+
+/* western Europe had the most profit and center asia sold the least */
+
+SELECT sub_category, SUM(profit) as total_profit, SUM (discount) as total_discount
+FROM orders o
+JOIN regions r
+	ON o.region_id = r.region_id
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE sub_region ILIKE '%western europe%'
+GROUP BY sub_category
+ORDER BY 2 DESC
+
+/* copiers were sold the most in western Europe */
+
+SELECT sub_category, SUM(profit) as total_profit, SUM (discount) as total_discount
+FROM orders o
+JOIN regions r
+	ON o.region_id = r.region_id
+JOIN products p
+	ON o.product_id = p.product_id
+WHERE sub_region ILIKE '%central asia%'
+GROUP BY sub_category
+ORDER BY 2 DESC
+
+/* phones were sold most in central asia */
+
+SELECT segment, COUNT (*) segment, SUM(profit) as total_profit, SUM (discount) as total_discount
+FROM orders o
+JOIN customers c
+	ON o.customer_id = c.customer_id
+JOIN products p
+	ON o.product_id = p.product_id
+GROUP BY segment
+ORDER BY 2 DESC
